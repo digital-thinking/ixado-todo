@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Missiles over Xerion - MVP</title>
+    <style>
+      :root {
+        --bg: #081018;
+        --fg: #dce8ff;
+        --muted: #9fb3d9;
+        --accent: #5dc4ff;
+        --danger: #ff6868;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #13253b, var(--bg));
+        color: var(--fg);
+      }
+      .app {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+      }
+      .panel {
+        width: min(960px, 100%);
+      }
+      .hud {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+        border: 1px solid #345;
+        background: #060c13;
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="panel">
+        <div class="hud">
+          <span id="score">Score: 0</span>
+          <span id="wave">Wave: 0</span>
+          <span id="cities">Cities: 0</span>
+          <span id="ammo">Ammo: 0</span>
+        </div>
+        <canvas id="game" width="960" height="540"></canvas>
+      </div>
+    </div>
+    <script type="module" src="./src/main.mjs"></script>
+  </body>
+</html>
