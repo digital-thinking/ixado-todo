@@ -16,6 +16,12 @@ def test_health() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_list_todos_empty() -> None:
+    response = client.get("/todos")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_create_and_list_todos() -> None:
     response = client.post(
         "/todos",
@@ -78,3 +84,28 @@ def test_validation_and_not_found_errors() -> None:
     missing_delete = client.delete("/todos/999")
     assert missing_delete.status_code == 404
     assert missing_delete.json() == {"detail": "Todo not found"}
+
+
+def test_title_is_trimmed_on_create_and_update() -> None:
+    created = client.post(
+        "/todos",
+        json={"title": "  spaced title  ", "description": None, "completed": False},
+    )
+    assert created.status_code == 201
+    assert created.json()["title"] == "spaced title"
+
+    updated = client.put(
+        "/todos/1",
+        json={"title": "  updated  ", "description": "desc", "completed": True},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "updated"
+
+
+def test_delete_returns_empty_body() -> None:
+    created = client.post("/todos", json={"title": "to-delete", "description": None, "completed": False})
+    assert created.status_code == 201
+
+    deleted = client.delete("/todos/1")
+    assert deleted.status_code == 204
+    assert deleted.text == ""
