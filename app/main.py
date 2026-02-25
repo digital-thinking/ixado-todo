@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException, Path, Response, status
 from pydantic import BaseModel, Field, field_validator
 
