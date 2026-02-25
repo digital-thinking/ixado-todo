@@ -36,6 +36,11 @@ def reset_store() -> None:
     _next_id = 1
 
 
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.get("/todos", response_model=list[Todo])
 def list_todos() -> list[Todo]:
     return [_todos[todo_id] for todo_id in sorted(_todos)]
@@ -76,3 +81,9 @@ def delete_todo(todo_id: int = Path(gt=0)) -> Response:
 
     del _todos[todo_id]
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

@@ -10,6 +10,12 @@ def setup_function() -> None:
     reset_store()
 
 
+def test_health() -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_create_and_list_todos() -> None:
     response = client.post(
         "/todos",
