@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 
-const db = new Database("todos.sqlite", { create: true });
+const dbPath = Bun.env.TODO_DB_PATH ?? "todos.sqlite";
+const db = new Database(dbPath, { create: true });
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS todos (
