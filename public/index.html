@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Todo App</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --line: #d9dfec;
+        --text: #1a2333;
+        --muted: #5f6c85;
+        --accent: #1f6feb;
+        --accent-strong: #1255b4;
+        --danger: #bf2435;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(180deg, #eef3ff 0%, var(--bg) 45%);
+        color: var(--text);
+      }
+
+      .page {
+        width: min(760px, 92vw);
+        margin: 3rem auto;
+        padding: 1.25rem;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: 0 12px 30px rgba(38, 56, 92, 0.12);
+        overflow: hidden;
+      }
+
+      .header {
+        padding: 1.25rem 1.25rem 1rem;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.5rem;
+      }
+
+      .subtle {
+        margin: 0.4rem 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .add-form {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.65rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--line);
+      }
+
+      input[type="text"] {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.7rem 0.85rem;
+        font-size: 1rem;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button[type="submit"] {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      button[type="submit"]:hover:not(:disabled) {
+        background: var(--accent-strong);
+      }
+
+      button.delete {
+        background: #fce8ea;
+        color: var(--danger);
+      }
+
+      .status {
+        min-height: 1.25rem;
+        margin: 0;
+        padding: 0.75rem 1.25rem 0.2rem;
+        font-size: 0.95rem;
+      }
+
+      .status.loading,
+      .status.info {
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .list {
+        list-style: none;
+        margin: 0;
+        padding: 0.35rem 0;
+      }
+
+      .item {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.8rem 1.25rem;
+        border-top: 1px solid #eff2f8;
+      }
+
+      .item:first-child {
+        border-top: 0;
+      }
+
+      .title {
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+
+      .title.done {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
+
+      .empty {
+        padding: 1rem 1.25rem 1.2rem;
+        color: var(--muted);
+      }
+
+      input:disabled,
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      @media (max-width: 560px) {
+        .page {
+          margin: 1.2rem auto;
+          padding: 0.3rem;
+        }
+
+        .add-form {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <header class="header">
+          <h1>TODO</h1>
+          <p class="subtle">Track, complete, and remove tasks.</p>
+        </header>
+
+        <form id="add-form" class="add-form">
+          <input
+            id="title-input"
+            name="title"
+            type="text"
+            placeholder="What needs to be done?"
+            maxlength="200"
+            required
+          />
+          <button id="add-button" type="submit">Add Todo</button>
+        </form>
+
+        <p id="status" class="status" aria-live="polite"></p>
+        <ul id="todo-list" class="list"></ul>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        todos: [],
+        loading: false,
+        formLoading: false,
+        busyIds: new Set(),
+      };
+
+      const statusEl = document.getElementById("status");
+      const listEl = document.getElementById("todo-list");
+      const formEl = document.getElementById("add-form");
+      const inputEl = document.getElementById("title-input");
+      const addButtonEl = document.getElementById("add-button");
+
+      function setStatus(message, type = "info") {
+        statusEl.textContent = message;
+        statusEl.className = "status " + type;
+      }
+
+      function clearStatus() {
+        statusEl.textContent = "";
+        statusEl.className = "status";
+      }
+
+      function setInitialLoading(active) {
+        state.loading = active;
+        render();
+      }
+
+      function setFormLoading(active) {
+        state.formLoading = active;
+        inputEl.disabled = active;
+        addButtonEl.disabled = active;
+      }
+
+      async function requestJson(url, options = {}) {
+        const response = await fetch(url, options);
+        const bodyText = await response.text();
+        const data = bodyText ? JSON.parse(bodyText) : null;
+
+        if (!response.ok) {
+          const errorMessage =
+            data && typeof data.error === "string"
+              ? data.error
+              : "Request failed";
+          throw new Error(errorMessage);
+        }
+        return data;
+      }
+
+      function render() {
+        listEl.innerHTML = "";
+
+        if (state.loading) {
+          const li = document.createElement("li");
+          li.className = "empty";
+          li.textContent = "Loading todos...";
+          listEl.appendChild(li);
+          return;
+        }
+
+        if (state.todos.length === 0) {
+          const li = document.createElement("li");
+          li.className = "empty";
+          li.textContent = "No todos yet.";
+          listEl.appendChild(li);
+          return;
+        }
+
+        for (const todo of state.todos) {
+          const li = document.createElement("li");
+          li.className = "item";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = Boolean(todo.done);
+          checkbox.disabled = state.busyIds.has(todo.id);
+          checkbox.setAttribute("aria-label", `Toggle ${todo.title}`);
+          checkbox.addEventListener("change", () => {
+            toggleTodo(todo.id, checkbox.checked);
+          });
+
+          const title = document.createElement("span");
+          title.className = "title" + (todo.done ? " done" : "");
+          title.textContent = todo.title;
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "delete";
+          deleteButton.textContent = "Delete";
+          deleteButton.disabled = state.busyIds.has(todo.id);
+          deleteButton.setAttribute("aria-label", `Delete ${todo.title}`);
+          deleteButton.addEventListener("click", () => {
+            deleteTodo(todo.id);
+          });
+
+          li.append(checkbox, title, deleteButton);
+          listEl.appendChild(li);
+        }
+      }
+
+      async function loadTodos() {
+        setInitialLoading(true);
+        setStatus("Loading todos...", "loading");
+        try {
+          const todos = await requestJson("/todos");
+          state.todos = Array.isArray(todos) ? todos : [];
+          clearStatus();
+        } catch (error) {
+          setStatus(error.message || "Failed to load todos.", "error");
+        } finally {
+          setInitialLoading(false);
+        }
+      }
+
+      async function addTodo(title) {
+        setFormLoading(true);
+        setStatus("Adding todo...", "loading");
+        try {
+          const todo = await requestJson("/todos", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title }),
+          });
+          state.todos.push(todo);
+          clearStatus();
+          render();
+        } catch (error) {
+          setStatus(error.message || "Failed to add todo.", "error");
+        } finally {
+          setFormLoading(false);
+        }
+      }
+
+      async function toggleTodo(id, done) {
+        state.busyIds.add(id);
+        render();
+        setStatus("Updating todo...", "loading");
+
+        try {
+          const updated = await requestJson(`/todos/${id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ done }),
+          });
+          state.todos = state.todos.map((todo) =>
+            todo.id === id ? updated : todo,
+          );
+          clearStatus();
+        } catch (error) {
+          setStatus(error.message || "Failed to update todo.", "error");
+        } finally {
+          state.busyIds.delete(id);
+          render();
+        }
+      }
+
+      async function deleteTodo(id) {
+        state.busyIds.add(id);
+        render();
+        setStatus("Deleting todo...", "loading");
+
+        try {
+          await requestJson(`/todos/${id}`, { method: "DELETE" });
+          state.todos = state.todos.filter((todo) => todo.id !== id);
+          clearStatus();
+        } catch (error) {
+          setStatus(error.message || "Failed to delete todo.", "error");
+        } finally {
+          state.busyIds.delete(id);
+          render();
+        }
+      }
+
+      formEl.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const title = inputEl.value.trim();
+        if (!title) {
+          setStatus("Please enter a todo title.", "error");
+          return;
+        }
+        await addTodo(title);
+        inputEl.value = "";
+        inputEl.focus();
+      });
+
+      loadTodos();
+    </script>
+  </body>
+</html>

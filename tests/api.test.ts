@@ -41,6 +41,20 @@ async function createTodo(title: string) {
 }
 
 describe("Todos API", () => {
+  test("serves frontend from root and public assets", async () => {
+    const rootRes = await fetch(`${baseUrl}/`);
+    const rootBody = await rootRes.text();
+    expect(rootRes.status).toBe(200);
+    expect(rootRes.headers.get("content-type")).toContain("text/html");
+    expect(rootBody).toContain("<title>Todo App</title>");
+
+    const fileRes = await fetch(`${baseUrl}/index.html`);
+    const fileBody = await fileRes.text();
+    expect(fileRes.status).toBe(200);
+    expect(fileRes.headers.get("content-type")).toContain("text/html");
+    expect(fileBody).toContain("<title>Todo App</title>");
+  });
+
   test("create todo", async () => {
     const res = await createTodo("write tests");
     const body = (await res.json()) as {

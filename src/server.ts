@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import { existsSync, statSync } from "node:fs";
+import { resolve, sep } from "node:path";
 
 const dbPath = Bun.env.TODO_DB_PATH ?? "todos.sqlite";
 const db = new Database(dbPath, { create: true });
@@ -18,6 +20,9 @@ type TodoRow = {
   done: number;
   created_at: string | null;
 };
+
+const publicDirPath = resolve(process.cwd(), "public");
+const publicDirPrefix = `${publicDirPath}${sep}`;
 
 function toTodo(todo: TodoRow) {
   return {
@@ -54,6 +59,33 @@ function parseTodoId(pathname: string): number | null {
   const id = Number(match[1]);
   if (!Number.isSafeInteger(id) || id < 1) return null;
   return id;
+}
+
+function resolvePublicFile(pathname: string): string | null {
+  const relativePath = pathname === "/" ? "index.html" : pathname.slice(1);
+  if (relativePath.length === 0) return null;
+
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(relativePath);
+  } catch {
+    return null;
+  }
+
+  const filePath = resolve(publicDirPath, decodedPath);
+  if (filePath !== publicDirPath && !filePath.startsWith(publicDirPrefix)) {
+    return null;
+  }
+
+  if (!existsSync(filePath)) {
+    return null;
+  }
+
+  if (!statSync(filePath).isFile()) {
+    return null;
+  }
+
+  return filePath;
 }
 
 export function startServer(port: number) {
@@ -188,6 +220,13 @@ export function startServer(port: number) {
           }
 
           return json({ deleted: true });
+        }
+
+        if (req.method === "GET") {
+          const publicFilePath = resolvePublicFile(pathname);
+          if (publicFilePath) {
+            return new Response(Bun.file(publicFilePath));
+          }
         }
 
         return notFound("Route not found");
