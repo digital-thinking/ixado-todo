@@ -1,0 +1,7 @@
+{
+  "name": "ixado-todo-backend",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/server.ts"
+  }
+}
